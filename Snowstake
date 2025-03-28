@@ -1,0 +1,39 @@
+def setup_measurement_system(initial_image_path):
+    """Run once during system setup to define stake location"""
+    initial_img = cv2.imread(initial_image_path)
+    
+    # Manual or automated identification of stake position
+    # Store coordinates of stake in configuration
+    stake_roi = identify_stake_region(initial_img)
+    
+    # Save configuration
+    config = {
+        'stake_roi': stake_roi,
+        'reference_height_cm': 150,
+        'band_height_cm': 10,
+        'pixel_per_cm': calculate_scale(initial_img, stake_roi)
+    }
+    
+    with open('config.json', 'w') as f:
+        json.dump(config, f)
+    
+    return config
+
+def process_new_image(image_path):
+    """Process each new image from the trail camera"""
+    # Load configuration
+    with open('config.json', 'r') as f:
+        config = json.load(f)
+    
+    # Load and crop image to ROI
+    img = cv2.imread(image_path)
+    x1, y1, x2, y2 = config['stake_roi']
+    stake_img = img[y1:y2, x1:x2]
+    
+    # Apply color segmentation to detect bands
+    visible_bands = count_visible_bands(stake_img)
+    
+    # Calculate snow depth
+    snow_depth = config['reference_height_cm'] - (visible_bands * config['band_height_cm'])
+    
+    return snow_depth
